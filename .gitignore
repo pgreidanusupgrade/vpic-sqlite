@@ -1,0 +1,4 @@
+data/*.sql
+data/*.zip
+data/*.bak
+api/vpic.sqlite

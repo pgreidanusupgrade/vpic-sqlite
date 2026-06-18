@@ -1,0 +1,37 @@
+services:
+  db:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c work_mem=8MB
+      -c max_connections=10
+      -c listen_addresses=*
+    environment:
+      POSTGRES_DB: vpic
+      POSTGRES_USER: vpic
+      POSTGRES_PASSWORD: vpic
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vpic -d vpic"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  converter:
+    build:
+      context: converter
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: "postgres://vpic:vpic@db:5432/vpic?sslmode=disable"
+      OUTPUT_PATH: /out/vpic.sqlite
+    volumes:
+      - ./api:/out
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - convert
