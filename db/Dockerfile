@@ -9,7 +9,7 @@ RUN apk add --no-cache curl unzip
 
 # Download the latest NHTSA VPIC lite release directly from the source.
 # This URL always returns the current monthly release as a zip.
-RUN curl -fsSL "https://vpic.nhtsa.dot.gov/api/users/cacheupdate/export?type=lite" \
+RUN curl -fsSL "https://vpic.nhtsa.dot.gov/api/users/cacheupdate/export?type=full" \
         -o /tmp/vpic.zip \
     && unzip -o /tmp/vpic.zip -d /tmp/init/ \
     && rm /tmp/vpic.zip
