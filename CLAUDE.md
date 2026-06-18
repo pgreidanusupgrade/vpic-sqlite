@@ -8,10 +8,14 @@ database dependency.
 
 ## Monthly update workflow
 
-1. Download the new NHTSA VPIC lite release and drop the `.zip` into `data/`
-2. `make convert` — builds the Postgres image, runs the converter, writes `api/vpic.sqlite`
-3. `make build` — builds the API image with the sqlite baked in via `//go:embed`
-4. `docker compose up` (or `make run`) to start on `:8080`
+```bash
+make convert   # db/Dockerfile downloads latest NHTSA release; converter writes api/vpic.sqlite
+make build     # bakes api/vpic.sqlite into the Go binary via //go:embed
+make run       # podman compose up → :8080
+```
+
+No manual download step. `db/Dockerfile` fetches directly from
+`https://vpic.nhtsa.dot.gov/api/users/cacheupdate/export?type=lite` at build time.
 
 Uses **podman**, not docker. All Makefile targets use `podman`/`podman compose`.
 
@@ -130,6 +134,7 @@ proceeding.
 
 | File | Purpose |
 |---|---|
+| `db/Dockerfile` | Downloads latest NHTSA VPIC lite zip, loads SQL into postgres at image build time |
 | `converter/main.go` | Postgres → SQLite export pipeline |
 | `converter/verify.go` | Procedure integrity check (runs at end of `make convert`) |
 | `api/decoder.go` | SQLite query + regex matching at serve time |

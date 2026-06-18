@@ -5,15 +5,10 @@ embedded directly in the Go binary — no database container at runtime.
 
 ## Monthly Update Workflow
 
-1. Download the latest NHTSA VPIC lite release:
-   https://vpic.nhtsa.dot.gov/downloads/
-
-2. Drop the `.zip` into `data/` (replace the old one).
-
-3. Regenerate the SQLite file and build:
+No manual download needed. Just run:
 
 ```bash
-make convert   # builds postgres image → runs converter → api/vpic.sqlite written
+make convert   # downloads latest NHTSA release, builds postgres, runs converter → api/vpic.sqlite
 make build     # builds the API image with vpic.sqlite embedded
 make run       # starts on :8080
 ```
@@ -22,6 +17,8 @@ Or all at once:
 ```bash
 make all
 ```
+
+Requires **podman** and **podman compose**.
 
 ## Endpoints
 
@@ -32,8 +29,8 @@ make all
 ## Architecture
 
 ```
-data/*.zip
-    ↓ (Dockerfile.db — postgres:16-alpine, loaded at image build time)
+NHTSA vpic.nhtsa.dot.gov (downloaded at db image build time)
+    ↓ (db/Dockerfile — postgres:16-alpine, data loaded into image)
 postgres vpic DB
     ↓ (converter — Go binary connecting via TCP)
 api/vpic.sqlite         ← flat table: (wmi, regex, variable, value)

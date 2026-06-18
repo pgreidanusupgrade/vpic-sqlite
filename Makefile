@@ -1,8 +1,8 @@
 .PHONY: build-db convert build run clean
 
-# Step 1: build the postgres image with NHTSA data loaded
+# Step 1: build the postgres image — downloads latest NHTSA VPIC lite at build time
 build-db:
-	podman build -t vpic-db -f Dockerfile.db .
+	podman build -t vpic-db ./db
 
 # Step 2: start postgres, run the converter, stop postgres
 # Produces api/vpic.sqlite

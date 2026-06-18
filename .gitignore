@@ -1,6 +1,3 @@
-data/*.sql
-data/*.zip
-data/*.bak
 api/vpic.sqlite
 api/vin-api
 api/api

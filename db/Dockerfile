@@ -5,10 +5,14 @@ ENV POSTGRES_USER=vpic
 ENV POSTGRES_PASSWORD=vpic
 ENV PGDATA=/var/lib/postgresql/data
 
-COPY data/ /tmp/init/
+RUN apk add --no-cache curl unzip
 
-RUN apk add --no-cache unzip \
-    && for z in /tmp/init/*.zip; do [ -f "$z" ] && unzip -o "$z" -d /tmp/init/; done; true
+# Download the latest NHTSA VPIC lite release directly from the source.
+# This URL always returns the current monthly release as a zip.
+RUN curl -fsSL "https://vpic.nhtsa.dot.gov/api/users/cacheupdate/export?type=lite" \
+        -o /tmp/vpic.zip \
+    && unzip -o /tmp/vpic.zip -d /tmp/init/ \
+    && rm /tmp/vpic.zip
 
 USER postgres
 RUN initdb -D "$PGDATA" \
