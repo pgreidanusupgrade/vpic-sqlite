@@ -15,7 +15,7 @@ make run       # podman compose up → :8080
 ```
 
 No manual download step. `db/Dockerfile` fetches directly from
-`https://vpic.nhtsa.dot.gov/api/users/cacheupdate/export?type=full` at build time.
+`https://vpic.nhtsa.dot.gov/downloads/vPICList_full_YYYY_MM.plain.zip` (or lite if full is unavailable) at build time. URL is auto-computed from the build date.
 
 Uses **podman**, not docker. All Makefile targets use `podman`/`podman compose`.
 

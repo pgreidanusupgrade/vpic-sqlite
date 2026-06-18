@@ -5,18 +5,26 @@ ENV POSTGRES_USER=vpic
 ENV POSTGRES_PASSWORD=vpic
 ENV PGDATA=/var/lib/postgresql/data
 
-# VPIC_URL: override at build time with the correct release URL from:
-#   https://vpic.nhtsa.dot.gov/api/
-# The lite endpoint is stable; full database ZIPs are named per-release.
-# Example override:
-#   podman build --build-arg VPIC_URL=https://vpic.nhtsa.dot.gov/api/users/cacheupdate/export?type=full ./db
-ARG VPIC_URL=https://vpic.nhtsa.dot.gov/api/users/cacheupdate/export?type=lite
-
 RUN apk add --no-cache curl unzip
 
-RUN curl -fsSL "$VPIC_URL" \
-        -o /tmp/vpic.zip \
-    && unzip -o /tmp/vpic.zip -d /tmp/init/ \
+# Download the current month's NHTSA VPIC release.
+# URL pattern: https://vpic.nhtsa.dot.gov/downloads/vPICList_{full|lite}_{YYYY}_{MM}.plain.zip
+# Tries full first; falls back to lite if full is not published for this month.
+# Override at build time: podman build --build-arg VPIC_URL=https://... ./db
+ARG VPIC_URL=
+RUN set -e; \
+    if [ -n "$VPIC_URL" ]; then \
+        echo "Using provided VPIC_URL: $VPIC_URL"; \
+        curl -fsSL "$VPIC_URL" -o /tmp/vpic.zip; \
+    else \
+        YEAR=$(date +%Y); MONTH=$(date +%m); \
+        FULL="https://vpic.nhtsa.dot.gov/downloads/vPICList_full_${YEAR}_${MONTH}.plain.zip"; \
+        LITE="https://vpic.nhtsa.dot.gov/downloads/vPICList_lite_${YEAR}_${MONTH}.plain.zip"; \
+        echo "Trying full: $FULL"; \
+        curl -fsSL "$FULL" -o /tmp/vpic.zip \
+            || (echo "Full not available, falling back to lite: $LITE" && curl -fsSL "$LITE" -o /tmp/vpic.zip); \
+    fi; \
+    unzip -o /tmp/vpic.zip -d /tmp/init/ \
     && rm /tmp/vpic.zip
 
 USER postgres
