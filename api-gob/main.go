@@ -70,15 +70,17 @@ func main() {
 	if err := loadVPICData(); err != nil {
 		log.Fatalf("load vpic data: %v", err)
 	}
+	recordStartupMetrics()
 
 	addr := ":8080"
 	if p := os.Getenv("PORT"); p != "" {
 		addr = ":" + p
 	}
 
-	http.HandleFunc("/vin/", handleVIN)
-	http.HandleFunc("/bench", handleBench)
+	http.HandleFunc("/vin/", metricsMiddleware("vin", handleVIN))
+	http.HandleFunc("/bench", metricsMiddleware("bench", handleBench))
 	http.HandleFunc("/health", handleHealth)
+	http.Handle("/metrics", metricsHandler())
 
 	log.Printf("listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, nil))
