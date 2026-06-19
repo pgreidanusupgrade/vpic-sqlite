@@ -1,4 +1,4 @@
-.PHONY: build-db convert build run clean
+.PHONY: build-db convert build run test clean
 
 # Step 1: build the postgres image — auto-downloads current month's NHTSA VPIC release
 # To pin a specific release: make build-db VPIC_URL=https://vpic.nhtsa.dot.gov/downloads/vPICList_full_2026_06.plain.zip
@@ -8,12 +8,17 @@ build-db:
 # Step 2: start postgres, run the converter, stop postgres
 # Produces api/vpic.sqlite
 convert: build-db
+	podman rm --force --ignore vpic-db-tmp
 	podman run -d --name vpic-db-tmp -e POSTGRES_DB=vpic -e POSTGRES_USER=vpic -e POSTGRES_PASSWORD=vpic -p 5432:5432 vpic-db
 	until podman exec vpic-db-tmp pg_isready -U vpic -d vpic; do sleep 1; done
 	podman build -t vpic-converter ./converter
-	podman run --rm --network host -e DATABASE_URL="postgres://vpic:vpic@localhost:5432/vpic?sslmode=disable" -e OUTPUT_PATH=/out/vpic.sqlite -v "$(PWD)/api:/out" vpic-converter
+	podman run --rm -e DATABASE_URL="postgres://vpic:vpic@host.containers.internal:5432/vpic?sslmode=disable" -e OUTPUT_PATH=/out/vpic.sqlite -v "$(PWD)/api:/out" vpic-converter
 	podman stop vpic-db-tmp
 	podman rm vpic-db-tmp
+
+# Run the test suite against the local vpic.sqlite (must run make convert first)
+test:
+	cd api && go test -v ./...
 
 # Step 3: build the final API image (embeds api/vpic.sqlite)
 build:
@@ -24,7 +29,7 @@ run:
 	podman compose up
 
 # All in one
-all: convert build run
+all: convert test build run
 
 clean:
 	podman compose down

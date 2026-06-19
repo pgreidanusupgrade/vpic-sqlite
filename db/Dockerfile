@@ -29,7 +29,8 @@ RUN set -e; \
 
 USER postgres
 RUN initdb -D "$PGDATA" \
-    && pg_ctl start -D "$PGDATA" -o "-c listen_addresses=''" -w -t 120 \
+    && echo "host all all 0.0.0.0/0 md5" >> "$PGDATA/pg_hba.conf" \
+    && pg_ctl start -D "$PGDATA" -o "-c listen_addresses='*'" -w -t 120 \
     && psql -U postgres -c "CREATE ROLE vpic WITH LOGIN PASSWORD 'vpic';" \
     && psql -U postgres -c "CREATE DATABASE vpic OWNER vpic;" \
     && for f in $(ls /tmp/init/*.sql 2>/dev/null | sort); do \

@@ -21,9 +21,9 @@ var (
 const vinChars = "ABCDEFGHJKLMNPRSTUVWXYZ0123456789"
 
 type VINResponse struct {
-	VIN     string            `json:"vin"`
-	Results map[string]string `json:"results,omitempty"`
-	Error   string            `json:"error,omitempty"`
+	VIN    string        `json:"vin"`
+	Result *decodeResult `json:"result,omitempty"`
+	Error  string        `json:"error,omitempty"`
 }
 
 func randomVIN() string {
@@ -45,27 +45,27 @@ func handleVIN(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := decodeVIN(db, vin)
+	result, err := decodeVIN(db, vin)
 	if err != nil {
 		log.Printf("decodeVIN %s: %v", vin, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(VINResponse{VIN: vin, Error: "query failed"})
 		return
 	}
-	json.NewEncoder(w).Encode(VINResponse{VIN: vin, Results: results})
+	json.NewEncoder(w).Encode(VINResponse{VIN: vin, Result: result})
 }
 
 func handleBench(w http.ResponseWriter, r *http.Request) {
 	vin := randomVIN()
 	w.Header().Set("Content-Type", "application/json")
-	results, err := decodeVIN(db, vin)
+	result, err := decodeVIN(db, vin)
 	if err != nil {
 		log.Printf("bench decodeVIN %s: %v", vin, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(VINResponse{VIN: vin, Error: "query failed"})
 		return
 	}
-	json.NewEncoder(w).Encode(VINResponse{VIN: vin, Results: results})
+	json.NewEncoder(w).Encode(VINResponse{VIN: vin, Result: result})
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {

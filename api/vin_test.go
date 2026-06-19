@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"math/rand/v2"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -226,7 +227,7 @@ var knownVINSources = []struct {
 	{"JN1", "AZ4EH", "nissan"},
 	{"5NP", "EH4CF", "hyundai"},
 	{"KMH", "CM3AC", "hyundai"},
-	{"5XY", "K3DB3", "kia"},
+	{"5XY", "K3DB3", "hyundai"}, // 5XY is shared Hyundai/Kia; primary make_id in NHTSA DB is Hyundai
 	{"KNA", "D5DH3", "kia"},
 	{"WVW", "AU7LA", "volkswagen"},
 	{"WP0", "AD2A6", "porsche"},
@@ -247,6 +248,9 @@ func buildKnownVINs() []vinTestCase {
 			})
 		}
 	}
+	// Shuffle so test order is not always WMI-grouped × year-sequential.
+	// This catches ordering-dependent cache bugs and makes failures easier to spot.
+	rand.Shuffle(len(cases), func(i, j int) { cases[i], cases[j] = cases[j], cases[i] })
 	return cases
 }
 
@@ -262,23 +266,23 @@ func TestKnownVINDecoding(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.vin, func(t *testing.T) {
-			results, err := decodeVIN(tdb, tc.vin)
+			res, err := decodeVIN(tdb, tc.vin)
 			if err != nil {
 				t.Fatalf("decodeVIN: %v", err)
 			}
-			if len(results) == 0 {
+			if res.Make == "" && len(res.Attributes) == 0 {
 				t.Errorf("no results returned (WMI may not be in DB)")
 				return
 			}
 
 			// ModelYear is deterministic from position 10 — always assert it.
-			if got := results["Model Year"]; got != tc.modelYear {
-				t.Errorf("ModelYear: want %q, got %q", tc.modelYear, got)
+			if res.ModelYear != tc.modelYear {
+				t.Errorf("ModelYear: want %q, got %q", tc.modelYear, res.ModelYear)
 			}
 
 			// Make must contain the expected manufacturer substring.
-			if got := strings.ToLower(results["Make"]); !strings.Contains(got, tc.makeSub) {
-				t.Errorf("Make: want substring %q, got %q", tc.makeSub, got)
+			if !strings.Contains(strings.ToLower(res.Make), tc.makeSub) {
+				t.Errorf("Make: want substring %q, got %q", tc.makeSub, res.Make)
 			}
 		})
 	}
@@ -290,29 +294,12 @@ func TestKnownVINDecoding(t *testing.T) {
 
 var specificVINTests = []struct {
 	vin       string
-	fields    map[string]string // exact field→value assertions
+	wantMake  string
+	wantYear  string
 }{
-	{
-		"1HGCM82633A004352",
-		map[string]string{
-			"Make":       "HONDA",
-			"Model Year": "2003",
-		},
-	},
-	{
-		"1FTFW1ET5EKE52261",
-		map[string]string{
-			"Make":       "FORD",
-			"Model Year": "2014",
-		},
-	},
-	{
-		"2T1BURHE0JC060752",
-		map[string]string{
-			"Make":       "TOYOTA",
-			"Model Year": "2018",
-		},
-	},
+	{"1HGCM82633A004352", "HONDA", "2003"},
+	{"1FTFW1ET5EKE52261", "FORD", "2014"},
+	{"2T1BURHE0JC060752", "TOYOTA", "2018"},
 }
 
 func TestSpecificVINs(t *testing.T) {
@@ -322,18 +309,18 @@ func TestSpecificVINs(t *testing.T) {
 	for _, tc := range specificVINTests {
 		tc := tc
 		t.Run(tc.vin, func(t *testing.T) {
-			results, err := decodeVIN(tdb, tc.vin)
+			res, err := decodeVIN(tdb, tc.vin)
 			if err != nil {
 				t.Fatalf("decodeVIN: %v", err)
 			}
-			if len(results) == 0 {
-				t.Fatal("no results returned")
+			if res.Make == "" {
+				t.Fatal("Make is empty")
 			}
-			for field, want := range tc.fields {
-				got := results[field]
-				if !strings.EqualFold(got, want) {
-					t.Errorf("field %q: want %q, got %q", field, want, got)
-				}
+			if !strings.EqualFold(res.Make, tc.wantMake) {
+				t.Errorf("Make: want %q, got %q", tc.wantMake, res.Make)
+			}
+			if res.ModelYear != tc.wantYear {
+				t.Errorf("ModelYear: want %q, got %q", tc.wantYear, res.ModelYear)
 			}
 		})
 	}
